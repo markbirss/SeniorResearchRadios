@@ -4,10 +4,10 @@
 This library meshed Raspberry Pi's with various sensors which combine to allow individual nodes to alert drivers of a crash.
 
 ## Required Repos and Libraries
-The packaging of this repo right now is uncertain. These are the libraries used in making this project run. Thanks @wirekraken and Adafruit!
+The packaging of this repo right now is uncertain. These are the libraries used in making this project run. Thanks Adafruit!
 
 ```bash
-git clone https://github.com/wirekraken/Raspberry-Pi-NRF24.git
+sudo pip3 install circuitpython-nrf24l01
 sudo pip3 install adafruit-circuitpython-gps
 sudo pip3 install adafruit-circuitpython-lsm303-accel
 sudo pip3 install adafruit-circuitpython-lsm303dlh-mag
