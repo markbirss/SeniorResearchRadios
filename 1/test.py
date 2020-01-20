@@ -22,7 +22,7 @@ spi = board.SPI()  # init spi bus object
 # initialize the nRF24L01 on the spi bus object
 nrf = RF24(spi, csn, ce)
 
-def master(count=5):  # count = 5 will only transmit 5 packets
+def master(count):  # count = 5 will only transmit 5 packets
     """Transmits an incrementing integer every second"""
     # set address of RX node into a TX pipe
     nrf.open_tx_pipe(address)
@@ -50,7 +50,7 @@ def master(count=5):  # count = 5 will only transmit 5 packets
         time.sleep(1)
         count -= 1
 
-def slave(count=3):
+def slave(count):
     """Polls the radio and prints the received value. This method expires
     after 6 seconds of no received transmission"""
     # set address of TX node into an RX pipe. NOTE you MUST specify
@@ -61,7 +61,7 @@ def slave(count=3):
     nrf.listen = True  # put radio into RX mode and power up
 
     start = time.monotonic()
-    while count and (time.monotonic() - start) < 6:
+    while count and (time.monotonic() - start) < count:
         if nrf.any():
             # print details about the received packet (if any)
             print("Found {} bytes on pipe {}\
