@@ -4,6 +4,7 @@ import adafruit_lsm303_accel
 import adafruit_lsm303dlh_mag
 from time import sleep
 
+#Initialize accelerometer over I2C bus
 i2c = busio.I2C(board.SCL, board.SDA)
 mag = adafruit_lsm303dlh_mag.LSM303DLH_Mag(i2c)
 accel = adafruit_lsm303_accel.LSM303_Accel(i2c)

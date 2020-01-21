@@ -1,12 +1,12 @@
 import RPi.GPIO as GPIO
 from time import sleep
+import Button
 
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(36, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+button = Button.TemporaryButton(36)
 
 x = 0
 while True:
-    if GPIO.input(36) == GPIO.HIGH:
+    if button.getState() == GPIO.HIGH:
         print('Interupt Detected ' + str(x))
         x += 1
         sleep(.5)
