@@ -1,8 +1,7 @@
 """
-Simple example of library usage.
+Example of library usage for streaming multiple payloads.
 """
 import time
-import struct
 import board
 import digitalio as dio
 from circuitpython_nrf24l01 import RF24
@@ -22,37 +21,36 @@ spi = board.SPI()  # init spi bus object
 # initialize the nRF24L01 on the spi bus object
 nrf = RF24(spi, csn, ce)
 
-def master(count):  # count = 5 will only transmit 5 packets
-    """Transmits an incrementing integer every second"""
+# lets create a list of payloads to be streamed to the nRF24L01 running slave()
+buffers = [b'A', b'hi']
+SIZE = 32  # we'll use SIZE for the number of payloads in the list and the payloads' length
+for i in range(SIZE):
+    buff = b''
+    for j in range(SIZE):
+        buff += bytes([(j >= SIZE / 2 + abs(SIZE / 2 - i) or j <
+                        SIZE / 2 - abs(SIZE / 2 - i)) + 48])
+    buffers.append(buff)
+    del buff
+
+def master(count=1):  # count = 5 will transmit the list 5 times
+    """Transmits a massive buffer of payloads"""
     # set address of RX node into a TX pipe
     nrf.open_tx_pipe(address)
     # ensures the nRF24L01 is in TX mode
     nrf.listen = False
 
-    while count:
-        # use struct.pack to packetize your data
-        # into a usable payload
-        buffer = struct.pack('<i', count)
-        # 'i' means a single 4 byte int value.
-        # '<' means little endian byte order. this may be optional
-        print("Sending: {} as struct: {}".format(count, buffer))
+    success_percentage = 0
+    for _ in range(count):
         now = time.monotonic() * 1000  # start timer
-        result = nrf.send(buffer)
-        if result is None:
-            print('send() timed out')
-        elif not result:
-            print('send() failed')
-        else:
-            print('send() successful')
-        # print timer results despite transmission success
-        print('Transmission took',
-              time.monotonic() * 1000 - now, 'ms')
-        time.sleep(1)
-        count -= 1
+        result = nrf.send(buffers)
+        print('Transmission took', time.monotonic() * 1000 - now, 'ms')
+        for r in result:
+            success_percentage += 1 if r else 0
+    success_percentage /= SIZE * count
+    print('successfully sent', success_percentage * 100, '%')
 
-def slave(count):
-    """Polls the radio and prints the received value. This method expires
-    after 6 seconds of no received transmission"""
+def slave(timeout=5):
+    """Stops listening after timeout with no response"""
     # set address of TX node into an RX pipe. NOTE you MUST specify
     # which pipe number to use for RX, we'll be using pipe 0
     # pipe number options range [0,5]
@@ -60,29 +58,21 @@ def slave(count):
     nrf.open_rx_pipe(0, address)
     nrf.listen = True  # put radio into RX mode and power up
 
-    start = time.monotonic()
-    while count and (time.monotonic() - start) < count:
+    count = 0
+    now = time.monotonic()  # start timer
+    while time.monotonic() < now + timeout:
         if nrf.any():
-            # print details about the received packet (if any)
-            print("Found {} bytes on pipe {}\
-                ".format(repr(nrf.any()), nrf.pipe()))
+            count += 1
             # retreive the received packet's payload
             rx = nrf.recv()  # clears flags & empties RX FIFO
-            # expecting an int, thus the string format '<i'
-            buffer = struct.unpack('<i', rx)
-            # print the only item in the resulting tuple from
-            # using `struct.unpack()`
-            print("Received: {}, Raw: {}".format(buffer[0], repr(rx)))
-            start = time.monotonic()
-            count -= 1
-            # this will listen indefinitely till count == 0
-        time.sleep(0.25)
+            print("Received (raw): {} - {}".format(repr(rx), count))
+            now = time.monotonic()
 
     # recommended behavior is to keep in TX mode while idle
     nrf.listen = False  # put the nRF24L01 is in TX mode
 
 print("""\
-    nRF24L01 Simple test.\n\
+    nRF24L01 Stream test\n\
     Run slave() on receiver\n\
     Run master() on transmitter""")
-master(20)
+master(3)
