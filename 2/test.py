@@ -19,35 +19,7 @@ spi = board.SPI()  # init spi bus object
 
 # we'll be using the dynamic payload size feature (enabled by default)
 # initialize the nRF24L01 on the spi bus object
-nrf = RF24(spi, csn, ce)
-
-# lets create a list of payloads to be streamed to the nRF24L01 running slave()
-buffers = []
-SIZE = 32  # we'll use SIZE for the number of payloads in the list and the payloads' length
-for i in range(SIZE):
-    buff = b''
-    for j in range(SIZE):
-        buff += bytes([(j >= SIZE / 2 + abs(SIZE / 2 - i) or j <
-                        SIZE / 2 - abs(SIZE / 2 - i)) + 48])
-    buffers.append(buff)
-    del buff
-
-def master(count=1):  # count = 5 will transmit the list 5 times
-    """Transmits a massive buffer of payloads"""
-    # set address of RX node into a TX pipe
-    nrf.open_tx_pipe(address)
-    # ensures the nRF24L01 is in TX mode
-    nrf.listen = False
-
-    success_percentage = 0
-    for _ in range(count):
-        now = time.monotonic() * 1000  # start timer
-        result = nrf.send(buffers)
-        print('Transmission took', time.monotonic() * 1000 - now, 'ms')
-        for r in result:
-            success_percentage += 1 if r else 0
-    success_percentage /= SIZE * count
-    print('successfully sent', success_percentage * 100, '%')
+nrf = RF24(spi, csn, ce, ard=250, arc=15, data_rate=1)
 
 def slave(timeout=5):
     """Stops listening after timeout with no response"""
@@ -65,7 +37,9 @@ def slave(timeout=5):
             count += 1
             # retreive the received packet's payload
             rx = nrf.recv()  # clears flags & empties RX FIFO
-            print("Received (raw): {} - {}".format(repr(rx), count))
+            
+            #converts bytearray to normal python string
+            print("Received (raw): {}".format(rx.decode('ASCII')))
             now = time.monotonic()
 
     # recommended behavior is to keep in TX mode while idle
@@ -75,4 +49,4 @@ print("""\
     nRF24L01 Stream test\n\
     Run slave() on receiver\n\
     Run master() on transmitter""")
-slave(5)
+slave(30)
