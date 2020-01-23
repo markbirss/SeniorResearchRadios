@@ -40,6 +40,7 @@ toEncode = ['Lat', 39.095093, 'Long', -77.518437, 'Speed', 0.15, 'ID #', 1010101
 #Modified SHA-512 checksum pre-transmission
 toEncode = generateSHA512Checksum(toEncode)
 toEncode = addBeginAndEndSeq(toEncode)
+#Eventually this list must be reversed through checksum before processing
 
 buffer = []
 for s in toEncode:
