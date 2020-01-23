@@ -21,13 +21,18 @@ spi = board.SPI()  # init spi bus object
 # initialize the nRF24L01 on the spi bus object
 nrf = RF24(spi, csn, ce, ard=250, arc=15, data_rate=1)
 
-def generateSHA512Checksum(l):
-    checksum = 0
-    for x in l:
-        x = str(x)
-        checksum += int(''.join(str(ord(c)) for c in x))
+def generateSHA1Checksum(l):
+    h = hashlib.new('sha1')
+    v= ''
+    
+    #Add each value in l in string form
+    for s in l:
+        v = v +str(s)
+       
+    #Put into bytearray for hashing
+    h.update(bytes(v.encode('ASCII')))
     l.append('Checksum')
-    l.append(checksum%512)
+    l.append(h.hexdigest())
     return l
 
 def addBeginAndEndSeq(l):
