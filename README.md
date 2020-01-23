@@ -4,7 +4,7 @@
 This library meshed Raspberry Pi's with various sensors which combine to allow individual nodes to alert drivers of a crash.
 
 ## Required Repos and Libraries
-The packaging of this repo right now is uncertain. These are the libraries used in making this project run. Thanks Adafruit!
+The packaging of this repo right now is uncertain. These are the libraries used in making this project run. Thanks Adafruit and Brendan Doherty!
 
 ```bash
 sudo pip3 install circuitpython-nrf24l01
@@ -17,7 +17,7 @@ sudo pip3 install adafruit-circuitpython-lsm303dlh-mag
 
 This repo requires the following hardware:
 1. 2x Raspberry Pi 3B+
-2. 2x NRF24L01+ Transceivers
+2. 2x nRF24L01+ Transceivers
 3. Assorted Wires
     1. ~20x Female - Male Jumper Wires
     2. ~20x Male - Male Jumper Wires
@@ -35,15 +35,32 @@ First, connect the NRF24L01+ transceivers.
 
 ![Table](https://circuitdigest.com/sites/default/files/inlineimages/u/nRF24L01-RF-Module.png)
 
+| nRF24L01+ | Raspberry Pi 3B+ |
+|:---------:|:----------------:|
+|   Ground  |      Ground      |
+|    VCC    |       3.3V       |
+|     CE    |   GPIO 8 (CE0)   |
+|    CSN    |      GPIO 17     |
+|    SCK    |   GPIO 11 (SCK)  |
+|    MOSI   |  GPIO 10 (MOSI)  |
+|    MISO   |   GPIO 9 (MISO)  |
+|    IRQ    |      Unused      |
+
+This radio uses the SPI communcation protocol, so its crucial that all connections are solid and working.
+
+Connect a 10uF decoupling capacitor between the ground and VCC lines for continuous power during short periods of increased draw by the radio. 
+
 If your board has poor/nonexistent labeling, refer to [XYZpinout](https://pinout.xyz).
 
-Next, the GPS to unit 1.
+Next, connect the GPS to unit 1.
 
 ![Pinout](https://cdn-learn.adafruit.com/assets/assets/000/062/854/medium640/adafruit_products_sensors_usbgps_bb_narrow.png?1538431002)
+This board will be identified by its UART address, likely `ttyUSB0`.
 
-Finally, the accelerometer ot unit 1 also. 
+Finally, the accelerometer to unit 1 also. 
 
 ![Pinout](https://cdn-learn.adafruit.com/assets/assets/000/083/212/medium640/robotics___cnc_lsm303dlh_rpi_bb.jpg?1572379494)
+This board communicates over the I2C protocol, so be sure not to reverse the wires. 
 
 Your hardware is ready. Now, the code!
 
