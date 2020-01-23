@@ -19,18 +19,35 @@ spi = board.SPI()  # init spi bus object
 
 # we'll be using the dynamic payload size feature (enabled by default)
 # initialize the nRF24L01 on the spi bus object
-nrf = RF24(spi, csn, ce)
+nrf = RF24(spi, csn, ce, ard=250, arc=15, data_rate=1)
+
+def generateSHA512Checksum(l):
+    checksum = 0
+    for x in l:
+        x = str(x)
+        checksum += int(''.join(str(ord(c)) for c in x))
+    l.append(checksum%512)
+    return l
+
+def addBeginAndEndSeq(l):
+    l.insert(0, 'BEGIN')
+    l.append('END')
+    return l
 
 # lets create a list of payloads to be streamed to the nRF24L01 running slave()
-buffers = [b'A', b'hi']
-SIZE = 32  # we'll use SIZE for the number of payloads in the list and the payloads' length
-for i in range(SIZE):
-    buff = b''
-    for j in range(SIZE):
-        buff += bytes([(j >= SIZE / 2 + abs(SIZE / 2 - i) or j <
-                        SIZE / 2 - abs(SIZE / 2 - i)) + 48])
-    buffers.append(buff)
-    del buff
+toEncode = ['Lat', 39.095093, 'Long', -77.518437, 'Speed', 0.15, 'ID #', 10101010, 'Severity', 5, 'Relay', 1, 'Checksum']
+
+#Modified SHA-512 checksum pre-transmission
+toEncode = generateSHA512Checksum(toEncode)
+toEncode = addBeginAndEndSeq(toEncode)
+
+buffer = []
+for s in toEncode:
+    buff = bytes(str(s).encode('ASCII'))
+    buffer.append(buff)
+    
+#Generate and append checksum
+
 
 def master(count=1):  # count = 5 will transmit the list 5 times
     """Transmits a massive buffer of payloads"""
@@ -42,37 +59,36 @@ def master(count=1):  # count = 5 will transmit the list 5 times
     success_percentage = 0
     for _ in range(count):
         now = time.monotonic() * 1000  # start timer
-        result = nrf.send(buffers)
-        print('Transmission took', time.monotonic() * 1000 - now, 'ms')
+        
+        #returns True for each element successfully sent. Possibly send in pairs dictionary style to confirm receipt
+        #if result contains false send again up to 3 times? 
+        result = nrf.send(buffer)
+        
+        print('Transmission took', time.monotonic() * 1000 - now, 'ms') 
         for r in result:
+            #break out of method if failure
+            if r==False:
+                return False
+            
             success_percentage += 1 if r else 0
-    success_percentage /= SIZE * count
-    print('successfully sent', success_percentage * 100, '%')
-
-def slave(timeout=5):
-    """Stops listening after timeout with no response"""
-    # set address of TX node into an RX pipe. NOTE you MUST specify
-    # which pipe number to use for RX, we'll be using pipe 0
-    # pipe number options range [0,5]
-    # the pipe numbers used during a transition don't have to match
-    nrf.open_rx_pipe(0, address)
-    nrf.listen = True  # put radio into RX mode and power up
-
-    count = 0
-    now = time.monotonic()  # start timer
-    while time.monotonic() < now + timeout:
-        if nrf.any():
-            count += 1
-            # retreive the received packet's payload
-            rx = nrf.recv()  # clears flags & empties RX FIFO
-            print("Received (raw): {} - {}".format(repr(rx), count))
-            now = time.monotonic()
-
-    # recommended behavior is to keep in TX mode while idle
-    nrf.listen = False  # put the nRF24L01 is in TX mode
+    success_percentage /= (len(buffer)) * count
+    print('Successfully sent', success_percentage * 100, '%')
+    return True
 
 print("""\
     nRF24L01 Stream test\n\
     Run slave() on receiver\n\
     Run master() on transmitter""")
-master(3)
+
+#Can be packaged to access master and initiate comms
+x = 1
+while x <= 3:
+    print('=' * 40)
+    print('Attempt ',x)
+    v = master(1)
+    if(v == False):
+        x+=1
+        print('Failed, retrying...')
+    else:
+        print('Success, exiting...')
+        break
