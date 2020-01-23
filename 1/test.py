@@ -26,6 +26,7 @@ def generateSHA512Checksum(l):
     for x in l:
         x = str(x)
         checksum += int(''.join(str(ord(c)) for c in x))
+    l.append('Checksum')
     l.append(checksum%512)
     return l
 
@@ -35,7 +36,7 @@ def addBeginAndEndSeq(l):
     return l
 
 # lets create a list of payloads to be streamed to the nRF24L01 running slave()
-toEncode = ['Lat', 39.095093, 'Long', -77.518437, 'Speed', 0.15, 'ID #', 10101010, 'Severity', 5, 'Relay', 1, 'Checksum']
+toEncode = ['Lat', 39.095093, 'Long', -77.518437, 'Speed', 0.15, 'ID #', 10101010, 'Severity', 5, 'Relay', 1]
 
 #Modified SHA-512 checksum pre-transmission
 toEncode = generateSHA512Checksum(toEncode)
