@@ -3,6 +3,7 @@ Example of library usage for streaming multiple payloads.
 """
 import time
 import board
+import hashlib
 import digitalio as dio
 from circuitpython_nrf24l01 import RF24
 
