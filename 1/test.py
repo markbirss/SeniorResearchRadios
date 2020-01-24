@@ -4,6 +4,8 @@ Example of library usage for streaming multiple payloads.
 import time
 import board
 import hashlib
+from datetime import datetime
+import random
 import digitalio as dio
 from circuitpython_nrf24l01 import RF24
 
@@ -22,18 +24,18 @@ spi = board.SPI()  # init spi bus object
 # initialize the nRF24L01 on the spi bus object
 nrf = RF24(spi, csn, ce, ard=250, arc=15, data_rate=1)
 
-def generateSHA1Checksum(l):
+def generateSHA1Checksum(l, len = 30):
     h = hashlib.new('sha1')
     v= ''
     
     #Add each value in l in string form
     for s in l:
         v = v +str(s)
-       
+    
     #Put into bytearray for hashing
     h.update(bytes(v.encode('ASCII')))
     l.append('Checksum')
-    l.append(h.hexdigest())
+    l.append(h.hexdigest()[0:len])
     return l
 
 def addBeginAndEndSeq(l):
@@ -42,10 +44,11 @@ def addBeginAndEndSeq(l):
     return l
 
 # lets create a list of payloads to be streamed to the nRF24L01 running slave()
-toEncode = ['Lat', 39.095093, 'Long', -77.518437, 'Speed', 0.15, 'ID #', 10101010, 'Severity', 5, 'Relay', 1]
+ID = str(random.randint(0,9999999))
+toEncode = ['Latitude', 39.095093, 'Longitude', -77.518437, 'Speed', 0000.00, 'Date & ID #', str(datetime.now())[0:22] + " " + ID, 'Severity', 5, 'Relay', 0]
 
-#Modified SHA-512 checksum pre-transmission
-toEncode = generateSHA512Checksum(toEncode)
+#Modified SHA-1 checksum pre-transmission
+toEncode = generateSHA1Checksum(toEncode, 32)
 toEncode = addBeginAndEndSeq(toEncode)
 #Eventually this list must be reversed through checksum before processing
 
@@ -53,9 +56,6 @@ buffer = []
 for s in toEncode:
     buff = bytes(str(s).encode('ASCII'))
     buffer.append(buff)
-    
-#Generate and append checksum
-
 
 def master(count=1):  # count = 5 will transmit the list 5 times
     """Transmits a massive buffer of payloads"""
