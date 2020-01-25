@@ -107,7 +107,7 @@ def addBeginAndEndSeq(l):
 #Generate SHA-1 Checksum
 def generateSHA1Checksum(l, len = 30, encoding = 'ASCII'):
     h = hashlib.new('sha1')
-    v= ''
+    v = ''
     
     #Add each value in l in string form
     for s in l:
@@ -125,7 +125,7 @@ def generateSHA1Checksum(l, len = 30, encoding = 'ASCII'):
 #Verify SHA-1 Checksum transmitted vs. one generated from data received
 def verifySHA1Checksum(l, encoding = 'ASCII'):
     h = hashlib.new('sha1')
-    v= ''
+    v = ''
     
     #Add each value in l in string form without START, END, and CHECKSUM
     for s in l[1:-3]:
@@ -157,6 +157,7 @@ def decodeDataIntoList(l, encoding = 'ASCII'):
     return buffer
 
 #Package data from sensors (GPS, Accel for severity, Radio Info)
+#returns list of data in string form with checksum and Start & End seq
 def packageData(severity=1):
     final_data = []
     loc_data = getGPSLock()
@@ -172,12 +173,12 @@ def packageData(severity=1):
 
 #UnPackage data for processing
 def unpackageData(b):
-    l = decodeDataIntoList(x)
+    l = decodeDataIntoList(b)
     checksumValid = verifySHA1Checksum(l)
     if(checksumValid == False):
-        return
-    
-    return checksumValid
+        return 'Integrity FAIL'
+    else:
+        return 'Integrity OK'
 
 #check if button (acting as an interupt has been pressed)
 def interupt():
