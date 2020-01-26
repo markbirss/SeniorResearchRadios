@@ -29,18 +29,22 @@ accelOffsets = [0.0, 0.0, 0.0]
 def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = board.D8, csn_pin = board.D17, has_accel = False, has_GPS = False, has_button = False, button_pin = 16):
     if has_radio:
         global address, spi, nrf
-        address = b'1Node'
-        ce = dio.DigitalInOut(ce_pin)
-        csn = dio.DigitalInOut(csn_pin)
-        spi = board.SPI()  # init spi bus object
+        try:
+            address = b'1Node'
+            ce = dio.DigitalInOut(ce_pin)
+            csn = dio.DigitalInOut(csn_pin)
+            spi = board.SPI()  # init spi bus object
 
-        #Initialize the nRF24L01 on the spi bus object
-        nrf = RF24(spi, csn, ce, ard=500, arc=15, data_rate=1, auto_ack = True)
+            #Initialize the nRF24L01 on the spi bus object
+            nrf = RF24(spi, csn, ce, ard=500, arc=15, data_rate=1, auto_ack = True)
 
-        if display_diagnostics:
-            nrf.what_happened(True)
-        else:
-            printOK("Radio Initialized")
+            if display_diagnostics:
+                nrf.what_happened(True)
+            else:
+                printOK("Radio Initialized")
+        except:
+            printCRIT("Radio required to proceed. Exiting.")
+            quit()
     else:
         printCRIT("Radio required to proceed. Exiting.")
         quit()
@@ -61,7 +65,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
     if has_GPS:
         global gps
         try:
-            uart = serial.Serial("/dev/ttyUSB0", baudrate=9600, timeout=10)
+            uart = serial.Serial("/dev/ttyS0", baudrate=9600, timeout=10)
             gps = adafruit_gps.GPS(uart, debug=False)
             gps.send_command(b'PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0')
             gps.send_command(b'PMTK220,1000')
@@ -284,3 +288,6 @@ def playSoundFile():
 #======================================================================================================
 
 initializeHardware(display_diagnostics = False, has_radio = True, has_accel = True, has_GPS = True, has_button = True, button_pin = button_GPIO_pin)
+while True:
+    getGPSLock()
+    time.sleep(2)
