@@ -5,6 +5,8 @@ import adafruit_lsm303dlh_mag
 import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import math
+
 
 #Initialize accelerometer over I2C bus
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -35,6 +37,9 @@ def animate(i, xAx, xAy, yAx, yAy, zAx, zAy):
     xAccel = accel.acceleration[0]
     yAccel = accel.acceleration[1]
     zAccel = accel.acceleration[2]
+    
+    mag = math.sqrt(xAccel**2)
+    print(mag)
 
     # Add x and y to lists
     xAy.append(xAccel)
