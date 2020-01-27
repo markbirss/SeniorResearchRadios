@@ -55,11 +55,13 @@ If your board has poor/nonexistent labeling, refer to [XYZpinout](https://pinout
 Next, connect the GPS to unit 1.
 
 ![Pinout](https://cdn-learn.adafruit.com/assets/assets/000/062/854/medium640/adafruit_products_sensors_usbgps_bb_narrow.png?1538431002)
+
 This board will be identified by its UART address, likely `ttyUSB0`.
 
 Finally, the accelerometer to unit 1 also. 
 
 ![Pinout](https://cdn-learn.adafruit.com/assets/assets/000/083/212/medium640/robotics___cnc_lsm303dlh_rpi_bb.jpg?1572379494)
+
 This board communicates over the I2C protocol, so be sure not to reverse the wires. 
 
 Your hardware is ready. Now, the code!
