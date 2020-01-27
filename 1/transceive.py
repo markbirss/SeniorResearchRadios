@@ -35,7 +35,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
             spi = board.SPI()  # init spi bus object
 
             #Initialize the nRF24L01 on the spi bus object
-            nrf = RF24(spi, csn, ce, ard=1000, arc=15, data_rate=1, auto_ack = True)
+            nrf = RF24(spi, csn, ce, ard=2000, arc=15, data_rate=1, auto_ack = True)
 
             if display_diagnostics:
                 nrf.what_happened(True)
@@ -179,7 +179,7 @@ def getMAC(interface='wlan0'):
     return str[0:17]
 
 #Generate SHA-1 Checksum
-def generateSHA1Checksum(l, len = 30, encoding = 'ASCII'):
+def generateSHA1Checksum(l, len = 20, encoding = 'ASCII'):
     h = hashlib.new('sha1')
     v = ''
     
@@ -244,6 +244,7 @@ def packageData(severity=1):
     relay_data = ['Relay #', 0]
     
     final_data = generateSHA1Checksum(loc_data + date_ID_data + address_data+ severity_data + relay_data)
+    final_data = encodeDataIntoBytearray(final_data)
     return final_data
 
 #UnPackage data for processing
@@ -257,6 +258,7 @@ def unpackageData(b):
     
     begin_index = next(i for i in reversed(range(len(l))) if l[i] == 'BEGIN')
     l = l[begin_index:]
+    printDIAG(str(l))
     
     checksumValid = verifySHA1Checksum(l)
     if(checksumValid == False):
@@ -285,58 +287,20 @@ def transmissionControl(sensitivity = 10):
     
     while time.monotonic() < begin + timeout:
         now = time.monotonic()
+        nrf.listen = True
     
         #Check accelerometer for crash-level movement
         if getAccelVectorMag() > sensitivity:
-            nrf.listen = False
             printALERT("Incident Detected")
-            print("=" * 40)
-            #Channel clear
-            
-            #Bundle data
-            l = packageData()
-            
-            x = 0
-            while x < 3:
-                result = nrf.send(l)
-                if r.contains(False):
-                    x +=1
-                else:
-                    break
-            printALERT("Transmission Sent")
-            
-            #Wait for ack
-
-            #All clear
-        
-            #End and return to normal operation with timeout to next alert so same event does not trigger multiple events
-            print("=" * 40)
             
         #Has ANY data been received?
         elif nrf.any():
-            print("=" * 40)
-            printALERT("Alert Received")
-            printDIAG("Logging Alert")
-            
-            msg = []
-            rec = now
-            while abs(rec - now) < 2:
-                now = time.monotonic()
-                if nrf.any():
-                    msg.append(nrf.recv())
-            data = unpackageData(msg)
-            print(data)
-            #If one received ,log details
-
-            #Determien severity
-            alert = determineAlertStatus()
-            if alert == 'Play Alert':
-                filename = generateSoundFile()
-                playSoundFile(filename)
-            print("=" * 40)
+            printALERT("Transmission Detected")
+            nrf.flush_rx()
         
         elif now - last_print_idle > 5:
             last_print_idle = now
+            getGPSLock
             printOK("Idle")
     nrf.listen = False
 
