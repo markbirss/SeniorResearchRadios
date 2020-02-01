@@ -25,7 +25,7 @@ accelOffsets = [0.0, 0.0, 0.0]
 #======================================================================================================
 #Initialize all hardware and check for OK
 #Uses BCM numbering scheme, not BOARD
-def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = board.D8, csn_pin = board.D17, has_accel = False, has_GPS = False, has_button = False, button_pin = 16):
+def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = board.D8, csn_pin = board.D17, has_accel = False, has_GPS = False, has_button = False, button_pin = 16, ch = 76):
     if has_radio:
         global address, spi, nrf
         try:
@@ -35,7 +35,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
             spi = board.SPI()  # init spi bus object
 
             #Initialize the nRF24L01 on the spi bus object
-            nrf = RF24(spi, csn, ce, ard=2000, arc=15, data_rate=1, auto_ack = True)
+            nrf = RF24(spi, csn, ce, ard=2000, arc=15, data_rate=1, auto_ack = True, channel = ch)
 
             if display_diagnostics:
                 nrf.what_happened(True)
@@ -54,7 +54,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
             i2c = busio.I2C(board.SCL, board.SDA)
             mag = adafruit_lsm303dlh_mag.LSM303DLH_Mag(i2c)
             accel = adafruit_lsm303_accel.LSM303_Accel(i2c)
-            calibrateAccel(cycles = 50)
+            calibrateAccel(cycles = 25)
             printOK("Accel Initialized")
         except:
             printERR("Accel Error, Check Connections")
@@ -91,25 +91,25 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
     print("=" * 40)
 #======================================================================================================
 def printOK(s):
-    print("\033[0;32m[OK] " + s + '\033[2J')
+    print("\033[0;32m[OK] " + s)
     
 def printBYP(s):
-    print("\033[0;36m[BYP] " + s + '\033[2J')
+    print("\033[0;36m[BYP] " + s)
     
 def printDIAG(s):
-    print("\033[0;34m[DIAG] " + s + '\033[2J')
+    print("\033[0;34m[DIAG] " + s)
     
 def printERR(s):
-    print("\033[1;31m[ERROR] " + s + '\033[2J')
+    print("\033[1;31m[ERROR] " + s)
     
 def printWARN(s):
-    print("\033[1;33m[WARNING] " + s + '\033[2J')
+    print("\033[1;33m[WARNING] " + s)
     
 def printALERT(s):
-    print("\033[1;35m[ALERT] " + s + '\033[2J')
+    print("\033[1;35m[ALERT] " + s)
     
 def printCRIT(s):
-    print("\033[1;30;41m[CRITICAL] " + s + '\033[2J')
+    print("\033[1;30;41m[CRITICAL] " + s)
     
 #======================================================================================================
 #Does NOT account for gravity
@@ -138,11 +138,11 @@ def getAccelVectorMag():
 #======================================================================================================
       
 def getGPSLock():
-    location = ['Lat', None, 'Long', None, 'Satellites', None, 'Alt', None, 'Speed', None, 'Angle', None]
+    location = ['Lat', None, 'Long', None, 'Speed', None]
     gps.update()
     if not gps.has_fix:
         # Try again if we don't have a fix yet.
-        printALERT('No Lock')
+        printWARN('No Lock')
         return location
     else:
         printOK('Lock Acquired')
@@ -150,16 +150,11 @@ def getGPSLock():
         # Print out details about the fix like location, date, etc.
         location[1] = round(gps.latitude,6)
         location[3] = round(gps.longitude,6)
-        location[5] = gps.satellites
             
         # Some attributes beyond latitude, longitude and timestamp are optional
         # and might not be present.  Check if they're None before trying to use!
-        if gps.altitude_m is not None:
-            location[7] = gps.altitude_m
         if gps.speed_knots is not None:
-            location[9] = gps.speed_knots
-        if gps.track_angle_deg is not None:
-            location[11] = gps.track_angle_deg
+            location[5] = gps.speed_knots
         return location
 #======================================================================================================
 
@@ -211,7 +206,7 @@ def verifySHA1Checksum(l, encoding = 'ASCII'):
                       
     hash_len = len(incoming_hash)
     generated_hash = h.hexdigest()[0:hash_len]
-    print("\nGenerated checksum: " + generated_hash)
+    printDIAG("\nGenerated checksum: " + generated_hash)
     if (generated_hash == incoming_hash):
         return True
     else:
@@ -237,7 +232,7 @@ def packageData(severity=1):
     loc_data = getGPSLock()
     
     ID = str(random.randint(0,9999999))
-    date_ID_data = ['Date & ID #', str(datetime.now())[0:22] + " " + ID]
+    date_ID_data = ['Date & ID #', str(datetime.utcnow())[0:22] + " " + ID]
     address_data = ['MAC Addr', getMAC()]
     
     severity_data = ['Severity', severity]
@@ -251,21 +246,30 @@ def packageData(severity=1):
 def unpackageData(b):
     l = decodeDataIntoList(b)
     
-    #Find last occurance of Begin before end in list
-    end_index = next(i for i in reversed(range(len(l))) if l[i] == 'END')
-    end_index += 1
-    l = l[0:end_index]
+    print('END' in l)
+    print('BEGIN' in l)
     
-    begin_index = next(i for i in reversed(range(len(l))) if l[i] == 'BEGIN')
-    l = l[begin_index:]
-    printDIAG(str(l))
+    #Find last occurance of Begin before end in list
+    if 'END' in l:
+        end_index = next(i for i in reversed(range(len(l))) if l[i] == 'END')
+        end_index += 1
+        l = l[0:end_index]
+        if 'BEGIN' in l:
+            begin_index = next(i for i in reversed(range(len(l))) if l[i] == 'BEGIN')
+            l = l[begin_index:]
+        else:
+             printERR("No BEGIN/END Sequence Found")
+             return [l, False]
+    else:
+        printERR("No BEGIN/END Sequence Found")
+        return [l, False]
     
     checksumValid = verifySHA1Checksum(l)
     if(checksumValid == False):
         printERR('Integrity FAIL')
     else:
         printOK('Integrity PASS')
-    return l
+    return [l, checksumValid]
     
 #======================================================================================================
 #check if button (acting as an interupt has been pressed)
@@ -274,35 +278,105 @@ def interupt():
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
-def transmissionControl(sensitivity = 10):
+def transmissionControl(sensitivity = 10, attempts = 5):
     printALERT("Beginning Transmission Controller")
-    nrf.open_rx_pipe(0, address)
-    nrf.listen = True
+    
+    isReceiving = False
+    isSending = False
+    hasRelay = False
+    
+    getGPSLock()
     
     #While not interupt sequence (i.e. forever)
-    timeout = 60
+    timeout = 300
     
     begin = time.monotonic()  # start timer
     last_print_idle = begin
     
+    nrf.open_rx_pipe(0, address)
+    nrf.listen = True
+    
     while time.monotonic() < begin + timeout:
         now = time.monotonic()
+        nrf.open_rx_pipe(0, address)
         nrf.listen = True
+        time.sleep(.1)
     
         #Check accelerometer for crash-level movement
-        if getAccelVectorMag() > sensitivity:
+        if getAccelVectorMag() > sensitivity or hasRelay:
+            #Print that system is preparing to send and clear TIXO buffer
             printALERT("Incident Detected")
+            nrf.flush_tx()
+            
+            #Set state machine to sending
+            isSending = True
+            
+            #Begin transmitter
+            nrf.open_tx_pipe(address)
+            nrf.listen = False
+            
+            #attempt number
+            attemptCycles = 0
+            
+            #while isSending and attemptCycles <= attempts:
+                #Fire off buffer and once done listen for ack call
+                #nrf.send(packageData())
+                    #if none within 500 mills, send data string again, up to (attempts) times
+            
+            
+            #In any case, no relay is present so reset flag
+            hasRelay = False
             
         #Has ANY data been received?
         elif nrf.any():
-            printALERT("Transmission Detected")
+            
+            #YOU ABSOLUTELY FUCKING MUST FLUSH RX TO GET DATA
             nrf.flush_rx()
+            
+            #Print that system is preparing to receive and clear FIXO buffer
+            printALERT("Transmission Detected")
+            
+            #Set state machine to receiving
+            isReceiving = True
+            
+            #Begin receiver
+            
+            #attempt number
+            attemptCycles = 0
+            
+            while isReceiving and attemptCycles < attempts:
+                attemptCycles += 1
+                isReceiving = not receiveData()
+                    
+                    
+                    #if list OK, send ACK and stop receiving by isReceiving = False
+                    #else if fails, send fail ACK and listen for new string
+                printDIAG("Is Receiving Data: " + str(isReceiving))
+                printDIAG("Attempt # " +str(attemptCycles))
+                
         
-        elif now - last_print_idle > 5:
+        elif now - last_print_idle > 15:
             last_print_idle = now
-            getGPSLock
+            getGPSLock()
             printOK("Idle")
-    nrf.listen = False
+
+def receiveData():
+    now = time.monotonic()
+    buffer = []
+    
+    nrf.open_rx_pipe(0, address)
+    nrf.listen = True
+    nrf.flush_rx()
+    
+    while time.monotonic() < now + 3:
+        if nrf.any():
+            rx = nrf.recv()
+            buffer.append(rx)
+            nrf.flush_rx()
+            print("Received (raw): {}".format(rx.decode('utf_8')))
+    result = unpackageData(buffer)
+    print(result)
+    return result[1]
 
 #Determine if given the data presented an alert should be sent/relayed
 #Level 0, alert received, no data attached
@@ -326,5 +400,6 @@ def playSoundFile():
 
 #======================================================================================================
 
-initializeHardware(display_diagnostics = False, has_radio = True, has_accel = True, has_GPS = True, has_button = True, button_pin = button_GPIO_pin)
+initializeHardware(display_diagnostics = False, has_radio = True, has_accel = True, has_GPS = True, has_button = True, button_pin = button_GPIO_pin, ch = 120)
+
 transmissionControl()

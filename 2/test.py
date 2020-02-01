@@ -21,7 +21,7 @@ spi = board.SPI()  # init spi bus object
 
 # we'll be using the dynamic payload size feature (enabled by default)
 # initialize the nRF24L01 on the spi bus object
-nrf = RF24(spi, csn, ce, ard=500, arc=15, data_rate=1)
+nrf = RF24(spi, csn, ce, ard=2000, arc=15, data_rate=1)
 
 def checkSHA1Checksum(l):
     h = hashlib.new('sha1')
@@ -32,7 +32,7 @@ def checkSHA1Checksum(l):
         v = v +str(s)
         
     #Decode data
-    h.update(bytes(v.encode('ASCII')))
+    h.update(bytes(v.encode('utf_8')))
     incoming_hash = l[l.index('Checksum')+1]
                       
     hash_len = len(incoming_hash)
@@ -40,6 +40,8 @@ def checkSHA1Checksum(l):
     print("\nGenerated hash: " + generated_hash)
     if (generated_hash == incoming_hash):
         return True
+    else:
+        return False
     
 
 def slave(timeout=5):
