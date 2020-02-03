@@ -159,6 +159,8 @@ def getGPSLock(verbose = False):
             if gps.speed_knots is not None:
                 location[5] = gps.speed_knots
             return location
+    else:
+        return location
 #======================================================================================================
 
 #Add 'BEGIN' and 'END' to list about to be transformed into bytearray
