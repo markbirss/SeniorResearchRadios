@@ -6,18 +6,8 @@ import hashlib
 import random
 import math
 
-import board
-import busio
-import serial
-import digitalio as dio
-from circuitpython_nrf24l01 import RF24
-
-import adafruit_lsm303_accel
-import adafruit_lsm303dlh_mag
-
-import adafruit_gps
-
 import RPi.GPIO as GPIO
+import board
 
 button_GPIO_pin = 16
 accelOffsets = [0.0, 0.0, 0.0]
@@ -27,6 +17,8 @@ accelOffsets = [0.0, 0.0, 0.0]
 #Uses BCM numbering scheme, not BOARD
 def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = board.D8, csn_pin = board.D17, has_accel = False, has_GPS = False, has_button = False, button_pin = 16, ch = 76):
     if has_radio:
+        from circuitpython_nrf24l01 import RF24
+        import digitalio as dio
         global address, spi, nrf
         try:
             address = b'1Node'
@@ -49,6 +41,9 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
         quit()
         
     if has_accel:
+        import adafruit_lsm303_accel
+        import adafruit_lsm303dlh_mag
+        import busio
         global mag, accel ,i2c
         try:
             i2c = busio.I2C(board.SCL, board.SDA)
@@ -62,6 +57,8 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
         printBYP("No Accel Installed... Bypassing")
 
     if has_GPS:
+        import serial
+        import adafruit_gps
         global gps
         try:
             uart = serial.Serial("/dev/ttyS0", baudrate=9600, timeout=10)
@@ -91,25 +88,25 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
     print("=" * 40)
 #======================================================================================================
 def printOK(s):
-    print("\033[0;32m[OK] " + s)
+    print("\033[0;32m[OK] " + s + '\033[0;0m')
     
 def printBYP(s):
-    print("\033[0;36m[BYP] " + s)
+    print("\033[0;36m[BYP] " + s + '\033[0;0m')
     
 def printDIAG(s):
-    print("\033[0;34m[DIAG] " + s)
+    print("\033[0;34m[DIAG] " + s + '\033[0;0m')
     
 def printERR(s):
-    print("\033[1;31m[ERROR] " + s)
+    print("\033[1;31m[ERROR] " + s + '\033[0;0m')
     
 def printWARN(s):
-    print("\033[1;33m[WARNING] " + s)
+    print("\033[1;33m[WARNING] " + s + '\033[0;0m')
     
 def printALERT(s):
-    print("\033[1;35m[ALERT] " + s)
+    print("\033[1;35m[ALERT] " + s + '\033[0;0m')
     
 def printCRIT(s):
-    print("\033[1;30;41m[CRITICAL] " + s)
+    print("\033[1;30;41m[CRITICAL] " + s + '\033[0;0m')
     
 #======================================================================================================
 #Does NOT account for gravity
@@ -137,15 +134,17 @@ def getAccelVectorMag():
     return round(math.sqrt(sum([x**2 for x in getAccelReadings()])),4)
 #======================================================================================================
       
-def getGPSLock():
+def getGPSLock(verbose = False):
     location = ['Lat', None, 'Long', None, 'Speed', None]
     gps.update()
     if not gps.has_fix:
         # Try again if we don't have a fix yet.
-        printWARN('No Lock')
+        if verbose:
+            printWARN('No Lock')
         return location
     else:
-        printOK('Lock Acquired')
+        if verbose:
+            printOK('Lock Acquired')
         # We have a fix! (gps.has_fix is true)
         # Print out details about the fix like location, date, etc.
         location[1] = round(gps.latitude,6)
@@ -228,8 +227,9 @@ def decodeDataIntoList(l, encoding = 'utf_8'):
 #Package data from sensors (GPS, Accel for severity, Radio Info)
 #returns list of data in string form with checksum and Start & End seq
 def packageData(severity=1):
+    printDIAG("Gathering Data")
     final_data = []
-    loc_data = getGPSLock()
+    loc_data = getGPSLock(verbose = True)
     
     ID = str(random.randint(0,9999999))
     date_ID_data = ['Date & ID #', str(datetime.utcnow())[0:22] + " " + ID]
@@ -245,9 +245,6 @@ def packageData(severity=1):
 #UnPackage data for processing
 def unpackageData(b):
     l = decodeDataIntoList(b)
-    
-    print('END' in l)
-    print('BEGIN' in l)
     
     #Find last occurance of Begin before end in list
     if 'END' in l:
@@ -278,14 +275,12 @@ def interupt():
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
-def transmissionControl(sensitivity = 10, attempts = 5):
+def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
     printALERT("Beginning Transmission Controller")
     
     isReceiving = False
     isSending = False
     hasRelay = False
-    
-    getGPSLock()
     
     #While not interupt sequence (i.e. forever)
     timeout = 300
@@ -300,7 +295,6 @@ def transmissionControl(sensitivity = 10, attempts = 5):
         now = time.monotonic()
         nrf.open_rx_pipe(0, address)
         nrf.listen = True
-        time.sleep(.1)
     
         #Check accelerometer for crash-level movement
         if getAccelVectorMag() > sensitivity or hasRelay:
@@ -318,11 +312,15 @@ def transmissionControl(sensitivity = 10, attempts = 5):
             #attempt number
             attemptCycles = 0
             
-            #while isSending and attemptCycles <= attempts:
-                #Fire off buffer and once done listen for ack call
-                #nrf.send(packageData())
-                    #if none within 500 mills, send data string again, up to (attempts) times
-            
+            while isSending and attemptCycles <= attempts:
+                res = sendData(packageData(severity = sensitivity))
+                if res == True:
+                    printOK("Transmisson Received in Full")
+                    isSending = False
+                else:
+                    printERR("Trying Again...")
+                    attemptCycles += 1
+                print("=" * 40)
             
             #In any case, no relay is present so reset flag
             hasRelay = False
@@ -340,6 +338,8 @@ def transmissionControl(sensitivity = 10, attempts = 5):
             isReceiving = True
             
             #Begin receiver
+            nrf.open_rx_pipe(0, address)
+            nrf.listen = True
             
             #attempt number
             attemptCycles = 0
@@ -352,13 +352,13 @@ def transmissionControl(sensitivity = 10, attempts = 5):
                     #if list OK, send ACK and stop receiving by isReceiving = False
                     #else if fails, send fail ACK and listen for new string
                 printDIAG("Is Receiving Data: " + str(isReceiving))
-                printDIAG("Attempt # " +str(attemptCycles))
+                print("=" * 40)
                 
         
-        elif now - last_print_idle > 15:
+        elif now - last_print_idle > print_delay:
             last_print_idle = now
             getGPSLock()
-            printOK("Idle")
+            printOK("Idle @ " + str(datetime.utcnow())[0:22])
 
 def receiveData():
     now = time.monotonic()
@@ -366,17 +366,27 @@ def receiveData():
     
     nrf.open_rx_pipe(0, address)
     nrf.listen = True
+    nrf.flush_tx()
     nrf.flush_rx()
     
-    while time.monotonic() < now + 3:
+    while time.monotonic() < now + 5:
         if nrf.any():
             rx = nrf.recv()
             buffer.append(rx)
             nrf.flush_rx()
+            
             print("Received (raw): {}".format(rx.decode('utf_8')))
     result = unpackageData(buffer)
-    print(result)
     return result[1]
+
+def sendData(l):
+    printDIAG("Sending Data")
+    result = nrf.send(l)
+    if False in result:
+        return False
+    else:
+        return True
+    
 
 #Determine if given the data presented an alert should be sent/relayed
 #Level 0, alert received, no data attached
