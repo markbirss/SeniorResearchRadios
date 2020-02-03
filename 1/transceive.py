@@ -131,30 +131,34 @@ def getAccelReadings(calibrating = False):
         return [round(a-b,4) for a,b in zip(accel.acceleration, accelOffsets)]
       
 def getAccelVectorMag():
-    return round(math.sqrt(sum([x**2 for x in getAccelReadings()])),4)
+    if has_accel:
+        return round(math.sqrt(sum([x**2 for x in getAccelReadings()])),4)
+    else:
+        return 0
 #======================================================================================================
       
 def getGPSLock(verbose = False):
     location = ['Lat', None, 'Long', None, 'Speed', None]
-    gps.update()
-    if not gps.has_fix:
-        # Try again if we don't have a fix yet.
-        if verbose:
-            printWARN('No Lock')
-        return location
-    else:
-        if verbose:
-            printOK('Lock Acquired')
-        # We have a fix! (gps.has_fix is true)
-        # Print out details about the fix like location, date, etc.
-        location[1] = round(gps.latitude,6)
-        location[3] = round(gps.longitude,6)
-            
-        # Some attributes beyond latitude, longitude and timestamp are optional
-        # and might not be present.  Check if they're None before trying to use!
-        if gps.speed_knots is not None:
-            location[5] = gps.speed_knots
-        return location
+    if has_GPS:
+        gps.update()
+        if not gps.has_fix:
+            # Try again if we don't have a fix yet.
+            if verbose:
+                printWARN('No Lock')
+            return location
+        else:
+            if verbose:
+                printOK('Lock Acquired')
+            # We have a fix! (gps.has_fix is true)
+            # Print out details about the fix like location, date, etc.
+            location[1] = round(gps.latitude,6)
+            location[3] = round(gps.longitude,6)
+                
+            # Some attributes beyond latitude, longitude and timestamp are optional
+            # and might not be present.  Check if they're None before trying to use!
+            if gps.speed_knots is not None:
+                location[5] = gps.speed_knots
+            return location
 #======================================================================================================
 
 #Add 'BEGIN' and 'END' to list about to be transformed into bytearray
@@ -271,7 +275,8 @@ def unpackageData(b):
 #======================================================================================================
 #check if button (acting as an interupt has been pressed)
 def interupt():
-    return GPIO.input(button_GPIO_pin)
+    if has_button:
+        return GPIO.input(button_GPIO_pin)
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
@@ -297,7 +302,7 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
         nrf.listen = True
     
         #Check accelerometer for crash-level movement
-        if getAccelVectorMag() > sensitivity or hasRelay:
+        if getAccelVectorMag() > sensitivity or hasRelay or interupt():
             #Print that system is preparing to send and clear TIXO buffer
             printALERT("Incident Detected")
             nrf.flush_tx()
@@ -410,6 +415,10 @@ def playSoundFile():
 
 #======================================================================================================
 
-initializeHardware(display_diagnostics = False, has_radio = True, has_accel = True, has_GPS = True, has_button = True, button_pin = button_GPIO_pin, ch = 120)
+has_GPS = True
+has_radio = True
+has_accel = True
+has_button = True
 
+initializeHardware(display_diagnostics = False, has_radio = has_radio, has_accel = has_accel, has_GPS = has_GPS, has_button = has_button, button_pin = button_GPIO_pin, ch = 120)
 transmissionControl()
