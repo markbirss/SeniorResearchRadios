@@ -181,7 +181,7 @@ def getMAC(interface='wlan0'):
     return str[0:17]
 
 #Generate SHA-1 Checksum
-def generateSHA1Checksum(l, len = 20, encoding = 'utf_8'):
+def generateSHA1Checksum(l, len = 25, encoding = 'utf_8'):
     h = hashlib.new('sha1')
     v = ''
     
@@ -281,10 +281,12 @@ def unpackageData(b):
 def interupt():
     if has_button:
         return GPIO.input(button_GPIO_pin)
+    else:
+        return False
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
-def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
+def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 60):
     printALERT("Beginning Transmission Controller")
     
     isReceiving = False
@@ -304,9 +306,10 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
         now = time.monotonic()
         nrf.open_rx_pipe(0, address)
         nrf.listen = True
+        accelMag= getAccelVectorMag()
     
         #Check accelerometer for crash-level movement
-        if getAccelVectorMag() > sensitivity or hasRelay or interupt():
+        if accelMag > sensitivity or hasRelay or interupt():
             #Print that system is preparing to send and clear TIXO buffer
             printALERT("Incident Detected")
             nrf.flush_tx()
@@ -337,9 +340,6 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
         #Has ANY data been received?
         elif nrf.any():
             
-            #YOU ABSOLUTELY FUCKING MUST FLUSH RX TO GET DATA
-            nrf.flush_rx()
-            
             #Print that system is preparing to receive and clear FIXO buffer
             printALERT("Transmission Detected")
             
@@ -355,13 +355,17 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
             
             while isReceiving and attemptCycles < attempts:
                 attemptCycles += 1
-                isReceiving = not receiveData()
-                    
+                data = receiveData()
+                isReceiving = not data[1]  
                     
                     #if list OK, send ACK and stop receiving by isReceiving = False
                     #else if fails, send fail ACK and listen for new string
                 printDIAG("Is Receiving Data: " + str(isReceiving))
                 print("=" * 40)
+                
+            #If returned a valid result, attempt to decypher    
+            if(isReceiving == False):
+                determineAlertStatus(data[0])
                 
         
         elif now - last_print_idle > print_delay:
@@ -375,18 +379,14 @@ def receiveData():
     
     nrf.open_rx_pipe(0, address)
     nrf.listen = True
-    nrf.flush_tx()
-    nrf.flush_rx()
     
     while time.monotonic() < now + 5:
         if nrf.any():
             rx = nrf.recv()
             buffer.append(rx)
-            nrf.flush_rx()
             
             print("Received (raw): {}".format(rx.decode('utf_8')))
-    result = unpackageData(buffer)
-    return result[1]
+    return unpackageData(buffer)
 
 def sendData(l):
     printDIAG("Sending Data")
@@ -405,7 +405,9 @@ def sendData(l):
 
 #Returns play, bypass, or disregard
 #This is where the magic happens
-def determineAlertStatus():
+def determineAlertStatus(data):
+    printDIAG("Beginning Data Transcription")
+    printDIAG(str(data))
     return
 
 #======================================================================================================
