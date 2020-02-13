@@ -9,6 +9,8 @@ import math
 import RPi.GPIO as GPIO
 import board
 
+import config as cfg
+
 button_GPIO_pin = 16
 accelOffsets = [0.0, 0.0, 0.0]
 
@@ -179,7 +181,7 @@ def getMAC(interface='wlan0'):
     return str[0:17]
 
 #Generate SHA-1 Checksum
-def generateSHA1Checksum(l, len = 20, encoding = 'ASCII'):
+def generateSHA1Checksum(l, len = 20, encoding = 'utf_8'):
     h = hashlib.new('sha1')
     v = ''
     
@@ -197,7 +199,7 @@ def generateSHA1Checksum(l, len = 20, encoding = 'ASCII'):
     return l
 
 #Verify SHA-1 Checksum transmitted vs. one generated from data received
-def verifySHA1Checksum(l, encoding = 'ASCII'):
+def verifySHA1Checksum(l, encoding = 'utf_8'):
     h = hashlib.new('sha1')
     v = ''
     
@@ -211,7 +213,7 @@ def verifySHA1Checksum(l, encoding = 'ASCII'):
                       
     hash_len = len(incoming_hash)
     generated_hash = h.hexdigest()[0:hash_len]
-    printDIAG("\nGenerated checksum: " + generated_hash)
+    printDIAG("Generated checksum: " + generated_hash)
     if (generated_hash == incoming_hash):
         return True
     else:
@@ -417,10 +419,10 @@ def playSoundFile():
 
 #======================================================================================================
 
-has_GPS = True
-has_radio = True
-has_accel = True
-has_button = True
+has_GPS = cfg.config['has_GPS']
+has_radio = cfg.config['has_radio']
+has_accel = cfg.config['has_accel']
+has_button = cfg.config['has_button']
 
-initializeHardware(display_diagnostics = False, has_radio = has_radio, has_accel = has_accel, has_GPS = has_GPS, has_button = has_button, button_pin = button_GPIO_pin, ch = 120)
+initializeHardware(display_diagnostics = False, has_radio = cfg.config['has_radio'], has_accel = has_accel, has_GPS = has_GPS, has_button = has_button, button_pin = button_GPIO_pin, ch = 120)
 transmissionControl()
