@@ -56,7 +56,7 @@ Next, connect the GPS to unit 1.
 
 ![Pinout](https://cdn-learn.adafruit.com/assets/assets/000/062/854/medium640/adafruit_products_sensors_usbgps_bb_narrow.png?1538431002)
 
-This board will be identified by its UART address, likely `ttyUSB0`.
+This board will be identified by its UART address, likely `ttyUSB0`. Without the USB breakout, it is possible to wire into the TX/RX ports and adrress it with an internal callback `/dev/ttyS0`. 
 
 Finally, the accelerometer to unit 1 also. 
 
@@ -66,6 +66,6 @@ This board communicates over the I2C protocol, so be sure not to reverse the wir
 
 Your hardware is ready. Now, the code!
 
-Clone this repo using `git clone https://github.com/Matthew1231A/SeniorResearchRadios.git` and use `cd SeniorResearchRadios` to locate the repository. After installing the libraries above using the command line, run the files located within the folders 1 and 2. Folder 1 is the transmitter and folder 2 is the receiver. Eventually, both will be able to transcieve and no designation will be necessary.
+Clone this repo using `git clone https://github.com/Matthew1231A/SeniorResearchRadios.git` and use `cd SeniorResearchRadios` to locate the repository. After installing the libraries above using the command line, create a file named `config.py`. This file follows the standard Python dictionary format for specifying the existance of the various physical implements. 
 
-When executed in Thonny, the included IDE, the master should return a confirmation and the slave should recieve the number sent. Updates to this readme will reflect code updates and changes.
+Finally, show time! Run `transceive.py`. This script is the master controller and handles all aspects of reception, transception, and processing. Once the file is run, that's it! Drive and let the radios do their thing. 
