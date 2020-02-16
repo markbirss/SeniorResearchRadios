@@ -363,7 +363,7 @@ def receiveData():
     now = time.monotonic()
     buffer = []
     
-    while time.monotonic() < now + 2:
+    while time.monotonic() < now + 1:
         if nrf.any():
             rx = nrf.recv()
             buffer.append(rx)
