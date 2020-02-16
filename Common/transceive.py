@@ -140,7 +140,7 @@ def getAccelVectorMag():
 #======================================================================================================
       
 def getGPSLock(verbose = False):
-    location = ['Lat', None, 'Long', None, 'Speed', None]
+    location = [None, None, None]
     if has_GPS:
         gps.update()
         if not gps.has_fix:
@@ -153,13 +153,13 @@ def getGPSLock(verbose = False):
                 printOK('Lock Acquired')
             # We have a fix! (gps.has_fix is true)
             # Print out details about the fix like location, date, etc.
-            location[1] = round(gps.latitude,6)
-            location[3] = round(gps.longitude,6)
+            location[0] = round(gps.latitude,6)
+            location[1] = round(gps.longitude,6)
                 
             # Some attributes beyond latitude, longitude and timestamp are optional
             # and might not be present.  Check if they're None before trying to use!
             if gps.speed_knots is not None:
-                location[5] = gps.speed_knots
+                location[2] = gps.speed_knots
             return location
     else:
         return location
@@ -240,11 +240,11 @@ def packageData(severity=1):
     loc_data = getGPSLock(verbose = True)
     
     ID = str(random.randint(0,9999999))
-    date_ID_data = ['Date & ID #', str(datetime.utcnow())[0:22] + " " + ID]
-    address_data = ['MAC Addr', getMAC()]
+    date_ID_data = [str(datetime.utcnow())[0:22] + " " + ID]
+    address_data = [getMAC()]
     
-    severity_data = ['Severity', severity]
-    relay_data = ['Relay #', 0]
+    severity_data = [severity]
+    relay_data = [0]
     
     final_data = generateSHA1Checksum(loc_data + date_ID_data + address_data+ severity_data + relay_data)
     final_data = encodeDataIntoBytearray(final_data)
