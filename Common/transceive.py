@@ -193,7 +193,6 @@ def generateSHA1Checksum(l, len = 20, encoding = 'utf_8'):
     h.update(bytes(v.encode(encoding)))
     
     #Append checksum to li
-    l.append('Checksum')
     l.append(h.hexdigest()[0:len])
     l = addBeginAndEndSeq(l)
     return l
@@ -209,7 +208,7 @@ def verifySHA1Checksum(l, encoding = 'utf_8'):
         
     #Decode data
     h.update(bytes(v.encode(encoding)))
-    incoming_hash = l[l.index('Checksum')+1]
+    incoming_hash = l[l.index('END')-1]
                       
     hash_len = len(incoming_hash)
     generated_hash = h.hexdigest()[0:hash_len]
@@ -307,7 +306,6 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
         if getAccelVectorMag() > sensitivity or hasRelay or interupt():
             #Print that system is preparing to send and clear TIXO buffer
             printALERT("Incident Detected")
-            nrf.flush_tx()
             
             #Set state machine to sending
             isSending = True
@@ -365,11 +363,10 @@ def receiveData():
     now = time.monotonic()
     buffer = []
     
-    while time.monotonic() < now + 5:
+    while time.monotonic() < now + 2:
         if nrf.any():
             rx = nrf.recv()
             buffer.append(rx)
-            nrf.flush_rx()
             
             print("Received (raw): {}".format(rx.decode('utf_8')))
     result = unpackageData(buffer)
