@@ -203,7 +203,7 @@ def verifySHA1Checksum(l, encoding = 'utf_8'):
     v = ''
     
     #Add each value in l in string form without START, END, and CHECKSUM
-    for s in l[1:-3]:
+    for s in l[1:-2]:
         v = v +str(s)
         
     #Decode data
