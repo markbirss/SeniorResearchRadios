@@ -17,8 +17,8 @@ accelOffsets = [0.0, 0.0, 0.0]
 #======================================================================================================
 #Initialize all hardware and check for OK
 #Uses BCM numbering scheme, not BOARD
-def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = board.D8, csn_pin = board.D17, has_accel = False, has_GPS = False, has_button = False, button_pin = 16, ch = 76):
-    if has_radio:
+def initializeHardware(display_diagnostics = False,ce_pin = board.D8, csn_pin = board.D17, button_pin = 16, ch = 76):
+    if cfg.config['has_radio']:
         from circuitpython_nrf24l01 import RF24
         import digitalio as dio
         global address, spi, nrf
@@ -42,7 +42,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
         printCRIT("Radio required to proceed. Exiting.")
         quit()
         
-    if has_accel:
+    if cfg.config['has_accel']:
         import adafruit_lsm303_accel
         import adafruit_lsm303dlh_mag
         import busio
@@ -58,7 +58,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
     else:
         printBYP("No Accel Installed... Bypassing")
 
-    if has_GPS:
+    if cfg.config['has_GPS']:
         import serial
         import adafruit_gps
         global gps
@@ -77,7 +77,7 @@ def initializeHardware(display_diagnostics = False, has_radio = False, ce_pin = 
     else:
         printBYP("No GPS Installed... Bypassing")
         
-    if has_button:
+    if cfg.config['has_button']:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(button_pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
         if display_diagnostics:
@@ -133,7 +133,7 @@ def getAccelReadings(calibrating = False):
         return [round(a-b,4) for a,b in zip(accel.acceleration, accelOffsets)]
       
 def getAccelVectorMag():
-    if has_accel:
+    if cfg.config['has_accel']:
         return round(math.sqrt(sum([x**2 for x in getAccelReadings()])),4)
     else:
         return 0
@@ -141,7 +141,7 @@ def getAccelVectorMag():
       
 def getGPSLock(verbose = False):
     location = [None, None, None]
-    if has_GPS:
+    if cfg.config['has_GPS']:
         gps.update()
         if not gps.has_fix:
             # Try again if we don't have a fix yet.
@@ -278,8 +278,10 @@ def unpackageData(b):
 #======================================================================================================
 #check if button (acting as an interupt has been pressed)
 def interupt():
-    if has_button:
+    if cfg.config['has_button']:
         return GPIO.input(button_GPIO_pin)
+    else:
+        return False
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
@@ -291,15 +293,14 @@ def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
     hasRelay = False
     
     #While not interupt sequence (i.e. forever)
-    timeout = 300
+    timeout = 5
     
-    begin = time.monotonic()  # start timer
-    last_print_idle = begin
+    last_print_idle = time.monotonic()
     
     nrf.open_rx_pipe(0, address)
     nrf.listen = True
     
-    while time.monotonic() < begin + timeout:
+    while True:
         now = time.monotonic()
     
         #Check accelerometer for crash-level movement
@@ -403,10 +404,5 @@ def playSoundFile():
 
 #======================================================================================================
 
-has_GPS = cfg.config['has_GPS']
-has_radio = cfg.config['has_radio']
-has_accel = cfg.config['has_accel']
-has_button = cfg.config['has_button']
-
-initializeHardware(display_diagnostics = False, has_radio = cfg.config['has_radio'], has_accel = has_accel, has_GPS = has_GPS, has_button = has_button, button_pin = button_GPIO_pin, ch = 120)
+initializeHardware(display_diagnostics = False, button_pin = button_GPIO_pin, ch = 120)
 transmissionControl()
