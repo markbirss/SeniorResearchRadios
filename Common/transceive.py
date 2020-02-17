@@ -285,7 +285,7 @@ def interupt():
 
 #======================================================================================================
 #Transmission controller (Fire & Forget)
-def transmissionControl(sensitivity = 10, attempts = 5, print_delay = 30):
+def transmissionControl(sensitivity = 5, attempts = 5, print_delay = 300):
     printALERT("Beginning Transmission Controller")
     
     isReceiving = False
