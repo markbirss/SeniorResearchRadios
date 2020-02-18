@@ -233,7 +233,7 @@ def decodeDataIntoList(l, encoding = 'utf_8'):
 
 #Package data from sensors (GPS, Accel for severity, Radio Info)
 #returns list of data in string form with checksum and Start & End seq
-def packageData(severity=1):
+def packageData():
     printDIAG("Gathering Data")
     final_data = []
     loc_data = getGPSLock(verbose = True)
@@ -242,10 +242,9 @@ def packageData(severity=1):
     date_ID_data = [str(datetime.utcnow())[0:22] + " " + ID]
     address_data = [getMAC()]
     
-    severity_data = [severity]
     relay_data = [0]
     
-    final_data = generateSHA1Checksum(loc_data + date_ID_data + address_data+ severity_data + relay_data)
+    final_data = generateSHA1Checksum(loc_data + date_ID_data + address_data + relay_data)
     final_data = encodeDataIntoBytearray(final_data)
     return final_data
 
@@ -292,8 +291,6 @@ def transmissionControl(sensitivity = 5, attempts = 5, print_delay = 300):
     isSending = False
     hasRelay = False
     
-    #While not interupt sequence (i.e. forever)
-    timeout = 5
     
     last_print_idle = time.monotonic()
     
@@ -319,7 +316,7 @@ def transmissionControl(sensitivity = 5, attempts = 5, print_delay = 300):
             attemptCycles = 0
             
             while isSending and attemptCycles <= attempts:
-                res = sendData(packageData(severity = sensitivity))
+                res = sendData(packageData())
                 if res == True:
                     printOK("Transmisson Received in Full")
                     isSending = False
@@ -354,6 +351,10 @@ def transmissionControl(sensitivity = 5, attempts = 5, print_delay = 300):
                 #else if fails, send fail ACK and listen for new string
                 printDIAG("Is Receiving Data: " + str(isReceiving))
                 print("=" * 40)
+                
+            #Unpack data and see if hasRelay flag needs to be set
+                
+                
                 
         elif now - last_print_idle > print_delay:
             last_print_idle = now
